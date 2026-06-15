@@ -159,7 +159,6 @@
   let outputSize = '1080';
   let padColor = '#000000';
   let quality = '23';
-  let quality = '23';
 
   const dropzone = document.getElementById('dropzone');
   const fileInput = document.getElementById('fileInput');
@@ -235,14 +234,6 @@
     });
   });
 
-  document.querySelectorAll('[data-quality]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('[data-quality]').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      quality = btn.dataset.quality;
-    });
-  });
-
   resetBtn.addEventListener('click', () => {
     currentFile = null;
     fileInput.value = '';
@@ -269,7 +260,6 @@
     formData.append('mode', fillMode);
     formData.append('size', outputSize);
     formData.append('padColor', padColor);
-    formData.append('quality', quality);
     formData.append('quality', quality);
 
     try {
