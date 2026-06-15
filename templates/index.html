@@ -123,6 +123,16 @@
         <button class="toggle-btn" data-size="3840">4K</button>
       </div>
     </div>
+
+    <div class="control-row">
+      <div class="control-label">Quality</div>
+      <div class="toggle-group">
+        <button class="toggle-btn" data-quality="28">Normal</button>
+        <button class="toggle-btn active" data-quality="23">High</button>
+        <button class="toggle-btn" data-quality="18">2K Sharp</button>
+        <button class="toggle-btn" data-quality="12">4K Ultra</button>
+      </div>
+    </div>
   </div>
 
   <div class="actions" id="actions">
@@ -148,6 +158,8 @@
   let fillMode = 'stretch';
   let outputSize = '1080';
   let padColor = '#000000';
+  let quality = '23';
+  let quality = '23';
 
   const dropzone = document.getElementById('dropzone');
   const fileInput = document.getElementById('fileInput');
@@ -215,6 +227,22 @@
     document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('active'));
   });
 
+  document.querySelectorAll('[data-quality]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('[data-quality]').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      quality = btn.dataset.quality;
+    });
+  });
+
+  document.querySelectorAll('[data-quality]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('[data-quality]').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      quality = btn.dataset.quality;
+    });
+  });
+
   resetBtn.addEventListener('click', () => {
     currentFile = null;
     fileInput.value = '';
@@ -241,6 +269,8 @@
     formData.append('mode', fillMode);
     formData.append('size', outputSize);
     formData.append('padColor', padColor);
+    formData.append('quality', quality);
+    formData.append('quality', quality);
 
     try {
       // Animate progress during upload
