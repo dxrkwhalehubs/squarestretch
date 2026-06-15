@@ -33,6 +33,13 @@ def process_video():
     mode = request.form.get('mode', 'stretch')
     size = request.form.get('size', '1080')
     pad_color = request.form.get('padColor', '#000000')
+    quality = request.form.get('quality', '23')
+    try:
+        quality = int(quality)
+        if quality not in [28, 23, 18, 12]:
+            quality = 23
+    except:
+        quality = 23
 
     try:
         size = int(size)
@@ -63,7 +70,7 @@ def process_video():
         '-i', input_path,
         '-vf', vf,
         '-c:v', 'libx264',
-        '-crf', '16',
+        '-crf', str(quality),
         '-preset', 'fast',
         '-c:a', 'aac',
         '-b:a', '192k',
