@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SquareStretch — Made by dxrk</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Space+Mono:wght@400;700&display=swap');
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0e0e0e; --surface: #1a1a1a; --border: #2a2a2a;
+    --accent: #c8f135; --accent-dim: #8faa23; --text: #f0f0f0; --muted: #777;
+  }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: 'Space Grotesk', sans-serif;
+    min-height: 100vh; display: flex; flex-direction: column;
+    align-items: center; padding: 40px 20px 60px;
+  }
+  header { text-align: center; margin-bottom: 48px; }
+  .logo { font-family: 'Space Mono', monospace; font-size: 13px; letter-spacing: 0.15em; color: var(--accent); text-transform: uppercase; margin-bottom: 12px; }
+  h1 { font-size: clamp(2rem, 5vw, 3.2rem); font-weight: 700; line-height: 1.1; letter-spacing: -0.02em; }
+  h1 span { color: var(--accent); }
+  .subtitle { margin-top: 10px; color: var(--muted); font-size: 15px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 32px; width: 100%; max-width: 680px; }
+  .dropzone {
+    border: 2px dashed var(--border); border-radius: 12px; padding: 48px 24px;
+    text-align: center; cursor: pointer; transition: border-color 0.2s, background 0.2s; position: relative;
+  }
+  .dropzone:hover, .dropzone.drag-over { border-color: var(--accent); background: rgba(200,241,53,0.04); }
+  .dropzone input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+  .drop-icon { font-size: 40px; margin-bottom: 12px; display: block; }
+  .drop-label { font-size: 16px; font-weight: 500; margin-bottom: 6px; }
+  .drop-sub { font-size: 13px; color: var(--muted); }
+  .file-selected { font-size: 14px; color: var(--accent); margin-top: 10px; font-weight: 500; display: none; }
+  .controls { display: none; margin-top: 24px; flex-direction: column; gap: 16px; }
+  .controls.visible { display: flex; }
+  .control-row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  .control-label { font-size: 13px; color: var(--muted); white-space: nowrap; width: 110px; flex-shrink: 0; }
+  .toggle-group { display: flex; gap: 8px; flex-wrap: wrap; }
+  .toggle-btn {
+    background: var(--bg); border: 1px solid var(--border); color: var(--text);
+    border-radius: 8px; padding: 7px 14px; font-family: 'Space Grotesk', sans-serif;
+    font-size: 13px; cursor: pointer; transition: all 0.15s;
+  }
+  .toggle-btn:hover { border-color: var(--accent); }
+  .toggle-btn.active { background: var(--accent); color: #0e0e0e; border-color: var(--accent); font-weight: 700; }
+  .color-options { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .color-swatch { width: 28px; height: 28px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; transition: border-color 0.15s; flex-shrink: 0; }
+  .color-swatch.active { border-color: var(--accent); }
+  input[type="color"] { width: 28px; height: 28px; border-radius: 50%; border: 2px solid var(--border); background: none; cursor: pointer; padding: 0; }
+  .actions { display: none; gap: 12px; margin-top: 24px; }
+  .actions.visible { display: flex; }
+  .btn { flex: 1; padding: 14px; border-radius: 10px; font-family: 'Space Grotesk', sans-serif; font-size: 15px; font-weight: 700; cursor: pointer; border: none; transition: all 0.15s; }
+  .btn-primary { background: var(--accent); color: #0e0e0e; }
+  .btn-primary:hover { background: #d4ff3d; }
+  .btn-primary:disabled { background: var(--accent-dim); cursor: not-allowed; opacity: 0.6; }
+  .btn-secondary { background: var(--bg); color: var(--text); border: 1px solid var(--border); }
+  .btn-secondary:hover { border-color: var(--accent); }
+  .progress-wrap { display: none; margin-top: 20px; flex-direction: column; gap: 8px; }
+  .progress-wrap.visible { display: flex; }
+  .progress-bar { height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
+  .progress-fill { height: 100%; background: var(--accent); width: 0%; transition: width 0.3s; }
+  .progress-text { font-family: 'Space Mono', monospace; font-size: 12px; color: var(--muted); }
+  .download-wrap { display: none; margin-top: 20px; }
+  .download-wrap.visible { display: block; }
+  .download-btn {
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    width: 100%; padding: 16px; background: var(--accent); color: #0e0e0e;
+    border-radius: 10px; font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700; font-size: 16px; text-decoration: none; transition: background 0.15s;
+  }
+  .download-btn:hover { background: #d4ff3d; }
+  .file-info { font-family: 'Space Mono', monospace; font-size: 11px; color: var(--muted); margin-top: 8px; text-align: center; }
+  .error-msg { color: #ff4f4f; font-size: 13px; margin-top: 12px; display: none; font-family: 'Space Mono', monospace; }
+  .error-msg.visible { display: block; }
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">Made by dxrk</div>
+  <h1>Stretch any video<br>to <span>1:1 square</span></h1>
+  <p class="subtitle">Upload · Choose settings · Download in seconds</p>
+</header>
+
+<div class="card">
+  <div class="dropzone" id="dropzone">
+    <input type="file" id="fileInput" accept="video/*">
+    <span class="drop-icon">🎬</span>
+    <div class="drop-label">Drop your video here</div>
+    <div class="drop-sub">or tap to browse · MP4, MOV, WebM, AVI · up to 500MB</div>
+    <div class="file-selected" id="fileSelected"></div>
+  </div>
+
+  <div class="controls" id="controls">
+    <div class="control-row">
+      <div class="control-label">Fill mode</div>
+      <div class="toggle-group">
+        <button class="toggle-btn active" data-mode="stretch">Stretch</button>
+        <button class="toggle-btn" data-mode="crop">Crop & fill</button>
+        <button class="toggle-btn" data-mode="pad">Pad (bars)</button>
+      </div>
+    </div>
+
+    <div class="control-row" id="padColorRow" style="display:none">
+      <div class="control-label">Bar color</div>
+      <div class="color-options">
+        <div class="color-swatch active" style="background:#000000" data-color="#000000"></div>
+        <div class="color-swatch" style="background:#ffffff" data-color="#ffffff"></div>
+        <div class="color-swatch" style="background:#808080" data-color="#808080"></div>
+        <div class="color-swatch" style="background:#1a1a2e" data-color="#1a1a2e"></div>
+        <input type="color" id="customColor" value="#000000" title="Custom color">
+      </div>
+    </div>
+
+    <div class="control-row">
+      <div class="control-label">Output size</div>
+      <div class="toggle-group">
+        <button class="toggle-btn" data-size="720">720p</button>
+        <button class="toggle-btn active" data-size="1080">1080p</button>
+        <button class="toggle-btn" data-size="1440">1440p</button>
+        <button class="toggle-btn" data-size="2048">2K</button>
+        <button class="toggle-btn" data-size="3840">4K</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="actions" id="actions">
+    <button class="btn btn-secondary" id="resetBtn">← New video</button>
+    <button class="btn btn-primary" id="renderBtn">🚀 Stretch & Download</button>
+  </div>
+
+  <div class="progress-wrap" id="progressWrap">
+    <div class="progress-text" id="progressText">Uploading…</div>
+    <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+  </div>
+
+  <div class="error-msg" id="errorMsg"></div>
+
+  <div class="download-wrap" id="downloadWrap">
+    <a class="download-btn" id="downloadLink" href="#">⬇ Download square video</a>
+    <div class="file-info" id="fileInfo"></div>
+  </div>
+</div>
+
+<script>
+  let currentFile = null;
+  let fillMode = 'stretch';
+  let outputSize = '1080';
+  let padColor = '#000000';
+
+  const dropzone = document.getElementById('dropzone');
+  const fileInput = document.getElementById('fileInput');
+  const fileSelected = document.getElementById('fileSelected');
+  const controls = document.getElementById('controls');
+  const actions = document.getElementById('actions');
+  const resetBtn = document.getElementById('resetBtn');
+  const renderBtn = document.getElementById('renderBtn');
+  const progressWrap = document.getElementById('progressWrap');
+  const progressFill = document.getElementById('progressFill');
+  const progressText = document.getElementById('progressText');
+  const downloadWrap = document.getElementById('downloadWrap');
+  const downloadLink = document.getElementById('downloadLink');
+  const fileInfo = document.getElementById('fileInfo');
+  const padColorRow = document.getElementById('padColorRow');
+  const errorMsg = document.getElementById('errorMsg');
+
+  dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('drag-over'); });
+  dropzone.addEventListener('dragleave', () => dropzone.classList.remove('drag-over'));
+  dropzone.addEventListener('drop', e => {
+    e.preventDefault(); dropzone.classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (file && file.type.startsWith('video/')) setFile(file);
+  });
+  fileInput.addEventListener('change', () => { if (fileInput.files[0]) setFile(fileInput.files[0]); });
+
+  function setFile(file) {
+    currentFile = file;
+    const mb = (file.size / 1024 / 1024).toFixed(1);
+    fileSelected.textContent = `✓ ${file.name} (${mb} MB)`;
+    fileSelected.style.display = 'block';
+    controls.classList.add('visible');
+    actions.classList.add('visible');
+    downloadWrap.classList.remove('visible');
+    errorMsg.classList.remove('visible');
+  }
+
+  document.querySelectorAll('[data-mode]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('[data-mode]').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      fillMode = btn.dataset.mode;
+      padColorRow.style.display = fillMode === 'pad' ? 'flex' : 'none';
+    });
+  });
+
+  document.querySelectorAll('[data-size]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('[data-size]').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      outputSize = btn.dataset.size;
+    });
+  });
+
+  document.querySelectorAll('.color-swatch').forEach(swatch => {
+    swatch.addEventListener('click', () => {
+      document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('active'));
+      swatch.classList.add('active');
+      padColor = swatch.dataset.color;
+    });
+  });
+
+  document.getElementById('customColor').addEventListener('input', e => {
+    padColor = e.target.value;
+    document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('active'));
+  });
+
+  resetBtn.addEventListener('click', () => {
+    currentFile = null;
+    fileInput.value = '';
+    fileSelected.style.display = 'none';
+    controls.classList.remove('visible');
+    actions.classList.remove('visible');
+    progressWrap.classList.remove('visible');
+    downloadWrap.classList.remove('visible');
+    errorMsg.classList.remove('visible');
+  });
+
+  renderBtn.addEventListener('click', async () => {
+    if (!currentFile) return;
+
+    renderBtn.disabled = true;
+    downloadWrap.classList.remove('visible');
+    errorMsg.classList.remove('visible');
+    progressWrap.classList.add('visible');
+    progressFill.style.width = '0%';
+    progressText.textContent = 'Uploading…';
+
+    const formData = new FormData();
+    formData.append('video', currentFile);
+    formData.append('mode', fillMode);
+    formData.append('size', outputSize);
+    formData.append('padColor', padColor);
+
+    try {
+      // Animate progress during upload
+      let fakeProgress = 0;
+      const interval = setInterval(() => {
+        if (fakeProgress < 40) {
+          fakeProgress += 2;
+          progressFill.style.width = fakeProgress + '%';
+        }
+      }, 200);
+
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', '/process');
+
+      xhr.upload.onprogress = e => {
+        if (e.lengthComputable) {
+          clearInterval(interval);
+          const pct = Math.round((e.loaded / e.total) * 40);
+          progressFill.style.width = pct + '%';
+          progressText.textContent = `Uploading… ${Math.round((e.loaded/e.total)*100)}%`;
+        }
+      };
+
+      xhr.onload = () => {
+        clearInterval(interval);
+        if (xhr.status === 200) {
+          progressFill.style.width = '100%';
+          progressText.textContent = 'Done!';
+
+          const blob = new Blob([xhr.response], { type: 'video/mp4' });
+          const url = URL.createObjectURL(blob);
+          downloadLink.href = url;
+          downloadLink.download = `square_${outputSize}x${outputSize}.mp4`;
+          const mb = (blob.size / 1024 / 1024).toFixed(1);
+          fileInfo.textContent = `${outputSize}×${outputSize} · MP4 · ${mb} MB · CRF 16`;
+
+          setTimeout(() => {
+            progressWrap.classList.remove('visible');
+            downloadWrap.classList.add('visible');
+          }, 400);
+        } else {
+          progressWrap.classList.remove('visible');
+          errorMsg.textContent = `Error: Something went wrong. Try a smaller file or different format.`;
+          errorMsg.classList.add('visible');
+        }
+        renderBtn.disabled = false;
+      };
+
+      xhr.onerror = () => {
+        clearInterval(interval);
+        progressWrap.classList.remove('visible');
+        errorMsg.textContent = 'Network error. Check your connection and try again.';
+        errorMsg.classList.add('visible');
+        renderBtn.disabled = false;
+      };
+
+      // Progress during encoding (after upload)
+      progressText.textContent = 'Encoding on server…';
+      let encodeProgress = 40;
+      const encodeInterval = setInterval(() => {
+        if (encodeProgress < 90) {
+          encodeProgress += 1;
+          progressFill.style.width = encodeProgress + '%';
+        }
+      }, 500);
+
+      xhr.responseType = 'arraybuffer';
+      xhr.send(formData);
+
+      xhr.onloadstart = () => {
+        setTimeout(() => {
+          progressText.textContent = 'Encoding on server…';
+        }, 2000);
+      };
+
+    } catch (err) {
+      progressWrap.classList.remove('visible');
+      errorMsg.textContent = `Error: ${err.message}`;
+      errorMsg.classList.add('visible');
+      renderBtn.disabled = false;
+    }
+  });
+</script>
+</body>
+</html>
