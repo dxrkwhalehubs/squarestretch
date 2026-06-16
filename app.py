@@ -1,11 +1,22 @@
 import os
 import uuid
 import subprocess
+import sys
+
+# Install ffmpeg-python at runtime if ffmpeg not found
+def install_ffmpeg():
+    try:
+        subprocess.run(['ffmpeg', '-version'], capture_output=True, check=True)
+    except FileNotFoundError:
+        os.system('apt-get update && apt-get install -y ffmpeg')
+
+install_ffmpeg()
+
 from flask import Flask, request, jsonify, send_file, render_template
 from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
-app.config['MAX_CONTENT_LENGTH'] = 500 * 1024 * 1024  # 500MB max upload
+app.config['MAX_CONTENT_LENGTH'] = 500 * 1024 * 1024
 
 UPLOAD_FOLDER = '/tmp/uploads'
 OUTPUT_FOLDER = '/tmp/outputs'
@@ -34,12 +45,6 @@ def process_video():
     size = request.form.get('size', '1080')
     pad_color = request.form.get('padColor', '#000000')
     quality = request.form.get('quality', '23')
-    try:
-        quality = int(quality)
-        if quality not in [28, 23, 18, 12]:
-            quality = 23
-    except:
-        quality = 23
 
     try:
         size = int(size)
@@ -48,19 +53,24 @@ def process_video():
     except:
         size = 1080
 
-    # Save uploaded file
+    try:
+        quality = int(quality)
+        if quality not in [28, 23, 18, 12]:
+            quality = 23
+    except:
+        quality = 23
+
     job_id = str(uuid.uuid4())
     ext = file.filename.rsplit('.', 1)[1].lower()
     input_path = os.path.join(UPLOAD_FOLDER, f'{job_id}.{ext}')
     output_path = os.path.join(OUTPUT_FOLDER, f'{job_id}_output.mp4')
     file.save(input_path)
 
-    # Build FFmpeg filter
     if mode == 'stretch':
         vf = f'scale={size}:{size}'
     elif mode == 'crop':
         vf = f'scale={size}:{size}:force_original_aspect_ratio=increase,crop={size}:{size}'
-    else:  # pad
+    else:
         hex_color = pad_color.lstrip('#')
         r, g, b = int(hex_color[0:2], 16), int(hex_color[2:4], 16), int(hex_color[4:6], 16)
         vf = f'scale={size}:{size}:force_original_aspect_ratio=decrease,pad={size}:{size}:(ow-iw)/2:(oh-ih)/2:color={r}/{g}/{b}'
@@ -81,12 +91,10 @@ def process_video():
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
         if result.returncode != 0:
-            print("FFmpeg error:", result.stderr)
             return jsonify({'error': 'FFmpeg failed', 'details': result.stderr}), 500
     except subprocess.TimeoutExpired:
         return jsonify({'error': 'Processing timed out'}), 500
     finally:
-        # Clean up input file
         if os.path.exists(input_path):
             os.remove(input_path)
 
