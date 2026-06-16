@@ -82,7 +82,7 @@
   .preview-box-label { font-size: 12px; color: var(--muted); margin-bottom: 6px; }
   .preview-box video { width: 100%; border-radius: 8px; border: 1px solid var(--border); display: block; }
   .preview-arrow { font-size: 22px; color: var(--accent); flex-shrink: 0; }
-  .square-preview { width: 100%; aspect-ratio: 1; border-radius: 8px; border: 1px solid var(--border); overflow: hidden; background: #111; }
+  .square-preview { width: 100%; border-radius: 8px; border: 1px solid var(--border); overflow: hidden; background: #111; display: flex; align-items: center; justify-content: center; }
   .square-preview canvas { width: 100%; height: 100%; display: block; }
 </style>
 </head>
@@ -229,6 +229,7 @@
     srcVideo.src = url;
     srcVideo.onloadedmetadata = () => {
       srcVideo.play();
+      updatePreviewSize();
       previewSection.classList.add('visible');
       if (animFrame) cancelAnimationFrame(animFrame);
       drawPreview();
@@ -250,6 +251,7 @@
       btn.classList.add('active');
       ratioW = parseInt(btn.dataset.w);
       ratioH = parseInt(btn.dataset.h);
+      updatePreviewSize();
     });
   });
 
@@ -294,21 +296,35 @@
   previewCanvas.height = 300;
   let animFrame = null;
 
+  function updatePreviewSize() {
+    // Update canvas aspect ratio to match selected ratio
+    const maxSize = 300;
+    if (ratioW >= ratioH) {
+      previewCanvas.width = maxSize;
+      previewCanvas.height = Math.round(maxSize * ratioH / ratioW);
+    } else {
+      previewCanvas.height = maxSize;
+      previewCanvas.width = Math.round(maxSize * ratioW / ratioH);
+    }
+  }
+
   function drawPreview() {
     if (!srcVideo.paused && !srcVideo.ended) {
       const vw = srcVideo.videoWidth, vh = srcVideo.videoHeight;
+      const cw = previewCanvas.width, ch = previewCanvas.height;
+      pCtx.clearRect(0, 0, cw, ch);
       if (fillMode === 'stretch') {
-        pCtx.drawImage(srcVideo, 0, 0, 300, 300);
+        pCtx.drawImage(srcVideo, 0, 0, cw, ch);
       } else if (fillMode === 'crop') {
-        const scale = Math.max(300/vw, 300/vh);
+        const scale = Math.max(cw/vw, ch/vh);
         const sw = vw*scale, sh = vh*scale;
-        pCtx.drawImage(srcVideo, (300-sw)/2, (300-sh)/2, sw, sh);
+        pCtx.drawImage(srcVideo, (cw-sw)/2, (ch-sh)/2, sw, sh);
       } else {
         pCtx.fillStyle = padColor;
-        pCtx.fillRect(0, 0, 300, 300);
-        const scale = Math.min(300/vw, 300/vh);
+        pCtx.fillRect(0, 0, cw, ch);
+        const scale = Math.min(cw/vw, ch/vh);
         const sw = vw*scale, sh = vh*scale;
-        pCtx.drawImage(srcVideo, (300-sw)/2, (300-sh)/2, sw, sh);
+        pCtx.drawImage(srcVideo, (cw-sw)/2, (ch-sh)/2, sw, sh);
       }
     }
     animFrame = requestAnimationFrame(drawPreview);
