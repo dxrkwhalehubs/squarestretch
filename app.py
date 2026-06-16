@@ -97,7 +97,7 @@ def process_video():
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
         if result.returncode != 0:
             print("FFmpeg error:", result.stderr)
-            return jsonify({'error': 'FFmpeg failed', 'details': result.stderr}), 500
+            return jsonify({'error': result.stderr[-500:]}), 500
     except subprocess.TimeoutExpired:
         return jsonify({'error': 'Processing timed out'}), 500
     finally:
