@@ -64,7 +64,16 @@ def process_video():
     ext = file.filename.rsplit('.', 1)[1].lower()
     input_path = os.path.join(UPLOAD_FOLDER, f'{job_id}.{ext}')
     output_path = os.path.join(OUTPUT_FOLDER, f'{job_id}.mp4')
+
+    # Save file fully before processing
     file.save(input_path)
+    
+    # Verify file was saved properly
+    file_size = os.path.getsize(input_path)
+    print(f'Saved file: {input_path}, size: {file_size} bytes', flush=True)
+    
+    if file_size < 100:
+        return jsonify({'error': f'Upload failed, only {file_size} bytes saved'}), 400
 
     if mode == 'stretch':
         vf = f'scale={out_w}:{out_h}'
@@ -89,24 +98,25 @@ def process_video():
     ]
 
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
         if result.returncode != 0:
-            return jsonify({'error': result.stderr[-300:]}), 500
+            return jsonify({'error': result.stderr[-500:]}), 500
     except subprocess.TimeoutExpired:
         return jsonify({'error': 'Timed out'}), 500
     finally:
         if os.path.exists(input_path):
             os.remove(input_path)
 
-    if not os.path.exists(output_path):
-        return jsonify({'error': 'Output not created'}), 500
+    if not os.path.exists(output_path) or os.path.getsize(output_path) < 1000:
+        return jsonify({'error': 'Output file empty or missing'}), 500
 
-    return send_file(
+    response = send_file(
         output_path,
         mimetype='video/mp4',
         as_attachment=True,
         download_name=f'stretched_{ratio_w}x{ratio_h}.mp4'
     )
+    return response
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
