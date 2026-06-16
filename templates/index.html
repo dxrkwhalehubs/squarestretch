@@ -376,6 +376,7 @@
 
       const xhr = new XMLHttpRequest();
       xhr.open('POST', '/process');
+      xhr.timeout = 600000; // 10 minute timeout
 
       xhr.upload.onprogress = e => {
         if (e.lengthComputable) {
@@ -413,6 +414,14 @@
           }
           errorMsg.classList.add('visible');
         }
+        renderBtn.disabled = false;
+      };
+
+      xhr.ontimeout = () => {
+        clearInterval(encodeInterval);
+        progressWrap.classList.remove('visible');
+        errorMsg.textContent = 'Request timed out. Try a shorter video.';
+        errorMsg.classList.add('visible');
         renderBtn.disabled = false;
       };
 
