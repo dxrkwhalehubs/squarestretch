@@ -1,17 +1,6 @@
 import os
 import uuid
 import subprocess
-import sys
-
-# Install ffmpeg-python at runtime if ffmpeg not found
-def install_ffmpeg():
-    try:
-        subprocess.run(['ffmpeg', '-version'], capture_output=True, check=True)
-    except FileNotFoundError:
-        os.system('apt-get update && apt-get install -y ffmpeg')
-
-install_ffmpeg()
-
 from flask import Flask, request, jsonify, send_file, render_template
 from werkzeug.utils import secure_filename
 
@@ -42,23 +31,39 @@ def process_video():
         return jsonify({'error': 'Invalid file type'}), 400
 
     mode = request.form.get('mode', 'stretch')
-    size = request.form.get('size', '1080')
     pad_color = request.form.get('padColor', '#000000')
-    quality = request.form.get('quality', '23')
 
     try:
-        size = int(size)
-        if size not in [720, 1080, 1440, 2048, 3840]:
-            size = 1080
+        ratio_w = int(request.form.get('ratioW', 1))
+        ratio_h = int(request.form.get('ratioH', 1))
     except:
-        size = 1080
+        ratio_w, ratio_h = 1, 1
 
     try:
-        quality = int(quality)
-        if quality not in [28, 23, 18, 12]:
-            quality = 23
+        res = int(request.form.get('res', 1440))
+        if res not in [1080, 1440, 2048, 3840]:
+            res = 1440
     except:
-        quality = 23
+        res = 1440
+
+    try:
+        quality = int(request.form.get('quality', 20))
+        if quality not in [23, 20, 16, 12]:
+            quality = 20
+    except:
+        quality = 20
+
+    # Calculate output dimensions — res = longer side
+    if ratio_w >= ratio_h:
+        out_w = res
+        out_h = int(res * ratio_h / ratio_w)
+    else:
+        out_h = res
+        out_w = int(res * ratio_w / ratio_h)
+
+    # H264 requires even dimensions
+    out_w = out_w + (out_w % 2)
+    out_h = out_h + (out_h % 2)
 
     job_id = str(uuid.uuid4())
     ext = file.filename.rsplit('.', 1)[1].lower()
@@ -67,13 +72,13 @@ def process_video():
     file.save(input_path)
 
     if mode == 'stretch':
-        vf = f'scale={size}:{size}'
+        vf = f'scale={out_w}:{out_h}'
     elif mode == 'crop':
-        vf = f'scale={size}:{size}:force_original_aspect_ratio=increase,crop={size}:{size}'
+        vf = f'scale={out_w}:{out_h}:force_original_aspect_ratio=increase,crop={out_w}:{out_h}'
     else:
         hex_color = pad_color.lstrip('#')
         r, g, b = int(hex_color[0:2], 16), int(hex_color[2:4], 16), int(hex_color[4:6], 16)
-        vf = f'scale={size}:{size}:force_original_aspect_ratio=decrease,pad={size}:{size}:(ow-iw)/2:(oh-ih)/2:color={r}/{g}/{b}'
+        vf = f'scale={out_w}:{out_h}:force_original_aspect_ratio=decrease,pad={out_w}:{out_h}:(ow-iw)/2:(oh-ih)/2:color={r}/{g}/{b}'
 
     cmd = [
         'ffmpeg', '-y',
@@ -91,6 +96,7 @@ def process_video():
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
         if result.returncode != 0:
+            print("FFmpeg error:", result.stderr)
             return jsonify({'error': 'FFmpeg failed', 'details': result.stderr}), 500
     except subprocess.TimeoutExpired:
         return jsonify({'error': 'Processing timed out'}), 500
@@ -105,7 +111,7 @@ def process_video():
         output_path,
         mimetype='video/mp4',
         as_attachment=True,
-        download_name=f'square_{size}x{size}.mp4'
+        download_name=f'stretched_{ratio_w}x{ratio_h}_{res}p.mp4'
     )
 
 if __name__ == '__main__':
