@@ -2,7 +2,6 @@ import os
 import uuid
 import subprocess
 from flask import Flask, request, jsonify, send_file, render_template
-from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 500 * 1024 * 1024
@@ -41,19 +40,15 @@ def process_video():
 
     try:
         res = int(request.form.get('res', 1440))
-        if res not in [1080, 1440, 2048, 3840]:
-            res = 1440
     except:
         res = 1440
 
     try:
         quality = int(request.form.get('quality', 20))
-        if quality not in [23, 20, 16, 12]:
-            quality = 20
     except:
         quality = 20
 
-    # Calculate output dimensions — res = longer side
+    # Calculate output dimensions
     if ratio_w >= ratio_h:
         out_w = res
         out_h = int(res * ratio_h / ratio_w)
@@ -68,7 +63,7 @@ def process_video():
     job_id = str(uuid.uuid4())
     ext = file.filename.rsplit('.', 1)[1].lower()
     input_path = os.path.join(UPLOAD_FOLDER, f'{job_id}.{ext}')
-    output_path = os.path.join(OUTPUT_FOLDER, f'{job_id}_output.mp4')
+    output_path = os.path.join(OUTPUT_FOLDER, f'{job_id}.mp4')
     file.save(input_path)
 
     if mode == 'stretch':
@@ -96,22 +91,21 @@ def process_video():
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
         if result.returncode != 0:
-            print("FFmpeg error:", result.stderr)
-            return jsonify({'error': result.stderr[-500:]}), 500
+            return jsonify({'error': result.stderr[-300:]}), 500
     except subprocess.TimeoutExpired:
-        return jsonify({'error': 'Processing timed out'}), 500
+        return jsonify({'error': 'Timed out'}), 500
     finally:
         if os.path.exists(input_path):
             os.remove(input_path)
 
     if not os.path.exists(output_path):
-        return jsonify({'error': 'Output file not created'}), 500
+        return jsonify({'error': 'Output not created'}), 500
 
     return send_file(
         output_path,
         mimetype='video/mp4',
         as_attachment=True,
-        download_name=f'stretched_{ratio_w}x{ratio_h}_{res}p.mp4'
+        download_name=f'stretched_{ratio_w}x{ratio_h}.mp4'
     )
 
 if __name__ == '__main__':
