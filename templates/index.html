@@ -74,6 +74,16 @@
   .file-info { font-family: 'Space Mono', monospace; font-size: 11px; color: var(--muted); margin-top: 8px; text-align: center; }
   .error-msg { color: #ff4f4f; font-size: 13px; margin-top: 12px; display: none; font-family: 'Space Mono', monospace; }
   .error-msg.visible { display: block; }
+  .preview-section { display: none; margin-top: 24px; }
+  .preview-section.visible { display: block; }
+  .preview-label { font-family: 'Space Mono', monospace; font-size: 11px; letter-spacing: 0.1em; color: var(--muted); text-transform: uppercase; margin-bottom: 10px; text-align: center; }
+  .preview-row { display: flex; gap: 16px; align-items: center; justify-content: center; }
+  .preview-box { flex: 1; text-align: center; }
+  .preview-box-label { font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+  .preview-box video { width: 100%; border-radius: 8px; border: 1px solid var(--border); display: block; }
+  .preview-arrow { font-size: 22px; color: var(--accent); flex-shrink: 0; }
+  .square-preview { width: 100%; aspect-ratio: 1; border-radius: 8px; border: 1px solid var(--border); overflow: hidden; background: #111; }
+  .square-preview canvas { width: 100%; height: 100%; display: block; }
 </style>
 </head>
 <body>
@@ -90,6 +100,23 @@
     <div class="drop-label">Drop your video here</div>
     <div class="drop-sub">or tap to browse · MP4, MOV, WebM, AVI · up to 500MB</div>
     <div class="file-selected" id="fileSelected"></div>
+  </div>
+
+  <div class="preview-section" id="previewSection">
+    <div class="preview-label">Live Preview</div>
+    <div class="preview-row">
+      <div class="preview-box">
+        <div class="preview-box-label">Original</div>
+        <video id="srcVideo" muted loop playsinline></video>
+      </div>
+      <div class="preview-arrow">→</div>
+      <div class="preview-box">
+        <div class="preview-box-label">1:1 Stretched</div>
+        <div class="square-preview">
+          <canvas id="previewCanvas"></canvas>
+        </div>
+      </div>
+    </div>
   </div>
 
   <div class="controls" id="controls">
@@ -194,6 +221,15 @@
     actions.classList.add('visible');
     downloadWrap.classList.remove('visible');
     errorMsg.classList.remove('visible');
+    // Load video preview
+    const url = URL.createObjectURL(file);
+    srcVideo.src = url;
+    srcVideo.onloadedmetadata = () => {
+      srcVideo.play();
+      previewSection.classList.add('visible');
+      if (animFrame) cancelAnimationFrame(animFrame);
+      drawPreview();
+    };
   }
 
   document.querySelectorAll('[data-mode]').forEach(btn => {
@@ -226,6 +262,16 @@
     document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('active'));
   });
 
+  // Redraw preview when fill mode changes
+  document.querySelectorAll('[data-mode]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('[data-mode]').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      fillMode = btn.dataset.mode;
+      padColorRow.style.display = fillMode === 'pad' ? 'flex' : 'none';
+    });
+  });
+
   document.querySelectorAll('[data-quality]').forEach(btn => {
     btn.addEventListener('click', () => {
       document.querySelectorAll('[data-quality]').forEach(b => b.classList.remove('active'));
@@ -233,6 +279,35 @@
       quality = btn.dataset.quality;
     });
   });
+
+  // Preview setup
+  const srcVideo = document.getElementById('srcVideo');
+  const previewCanvas = document.getElementById('previewCanvas');
+  const previewSection = document.getElementById('previewSection');
+  const pCtx = previewCanvas.getContext('2d');
+  previewCanvas.width = 300;
+  previewCanvas.height = 300;
+  let animFrame = null;
+
+  function drawPreview() {
+    if (!srcVideo.paused && !srcVideo.ended) {
+      const vw = srcVideo.videoWidth, vh = srcVideo.videoHeight;
+      if (fillMode === 'stretch') {
+        pCtx.drawImage(srcVideo, 0, 0, 300, 300);
+      } else if (fillMode === 'crop') {
+        const scale = Math.max(300/vw, 300/vh);
+        const sw = vw*scale, sh = vh*scale;
+        pCtx.drawImage(srcVideo, (300-sw)/2, (300-sh)/2, sw, sh);
+      } else {
+        pCtx.fillStyle = padColor;
+        pCtx.fillRect(0, 0, 300, 300);
+        const scale = Math.min(300/vw, 300/vh);
+        const sw = vw*scale, sh = vh*scale;
+        pCtx.drawImage(srcVideo, (300-sw)/2, (300-sh)/2, sw, sh);
+      }
+    }
+    animFrame = requestAnimationFrame(drawPreview);
+  }
 
   resetBtn.addEventListener('click', () => {
     currentFile = null;
@@ -243,6 +318,10 @@
     progressWrap.classList.remove('visible');
     downloadWrap.classList.remove('visible');
     errorMsg.classList.remove('visible');
+    previewSection.classList.remove('visible');
+    srcVideo.pause();
+    srcVideo.src = '';
+    if (animFrame) cancelAnimationFrame(animFrame);
   });
 
   renderBtn.addEventListener('click', async () => {
