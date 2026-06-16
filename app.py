@@ -22,6 +22,8 @@ def index():
 
 @app.route('/process', methods=['POST'])
 def process_video():
+    print('REQUEST RECEIVED', flush=True)
+
     if 'video' not in request.files:
         return jsonify({'error': 'No video file'}), 400
 
@@ -39,16 +41,15 @@ def process_video():
         ratio_w, ratio_h = 1, 1
 
     try:
-        res = int(request.form.get('res', 1440))
+        res = int(request.form.get('res', 1080))
     except:
-        res = 1440
+        res = 1080
 
     try:
-        quality = int(request.form.get('quality', 20))
+        quality = int(request.form.get('quality', 23))
     except:
-        quality = 20
+        quality = 23
 
-    # Calculate output dimensions
     if ratio_w >= ratio_h:
         out_w = res
         out_h = int(res * ratio_h / ratio_w)
@@ -56,24 +57,19 @@ def process_video():
         out_h = res
         out_w = int(res * ratio_w / ratio_h)
 
-    # H264 requires even dimensions
     out_w = out_w + (out_w % 2)
     out_h = out_h + (out_h % 2)
+
+    print(f'Output size: {out_w}x{out_h}, quality: {quality}', flush=True)
 
     job_id = str(uuid.uuid4())
     ext = file.filename.rsplit('.', 1)[1].lower()
     input_path = os.path.join(UPLOAD_FOLDER, f'{job_id}.{ext}')
     output_path = os.path.join(OUTPUT_FOLDER, f'{job_id}.mp4')
 
-    # Save file fully before processing
     file.save(input_path)
-    
-    # Verify file was saved properly
     file_size = os.path.getsize(input_path)
-    print(f'Saved file: {input_path}, size: {file_size} bytes', flush=True)
-    
-    if file_size < 100:
-        return jsonify({'error': f'Upload failed, only {file_size} bytes saved'}), 400
+    print(f'Saved: {file_size} bytes', flush=True)
 
     if mode == 'stretch':
         vf = f'scale={out_w}:{out_h}'
@@ -90,33 +86,48 @@ def process_video():
         '-vf', vf,
         '-c:v', 'libx264',
         '-crf', str(quality),
-        '-preset', 'fast',
+        '-preset', 'ultrafast',
         '-c:a', 'aac',
-        '-b:a', '192k',
+        '-b:a', '128k',
         '-movflags', '+faststart',
         output_path
     ]
 
+    print(f'Running FFmpeg: {" ".join(cmd)}', flush=True)
+
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
+        print(f'FFmpeg done, returncode: {result.returncode}', flush=True)
         if result.returncode != 0:
-            return jsonify({'error': result.stderr[-500:]}), 500
+            print(f'FFmpeg stderr: {result.stderr[-200:]}', flush=True)
+            return jsonify({'error': result.stderr[-300:]}), 500
     except subprocess.TimeoutExpired:
+        print('FFmpeg timed out!', flush=True)
         return jsonify({'error': 'Timed out'}), 500
+    except Exception as e:
+        print(f'Exception: {e}', flush=True)
+        return jsonify({'error': str(e)}), 500
     finally:
         if os.path.exists(input_path):
             os.remove(input_path)
 
-    if not os.path.exists(output_path) or os.path.getsize(output_path) < 1000:
-        return jsonify({'error': 'Output file empty or missing'}), 500
+    if not os.path.exists(output_path):
+        print('Output file missing!', flush=True)
+        return jsonify({'error': 'Output file missing'}), 500
 
-    response = send_file(
+    out_size = os.path.getsize(output_path)
+    print(f'Output size: {out_size} bytes', flush=True)
+
+    if out_size < 100:
+        return jsonify({'error': f'Output too small: {out_size} bytes'}), 500
+
+    print('Sending file...', flush=True)
+    return send_file(
         output_path,
         mimetype='video/mp4',
         as_attachment=True,
         download_name=f'stretched_{ratio_w}x{ratio_h}.mp4'
     )
-    return response
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
