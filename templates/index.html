@@ -405,7 +405,12 @@
           }, 400);
         } else {
           progressWrap.classList.remove('visible');
-          errorMsg.textContent = `Error: Something went wrong. Try a smaller file or different format.`;
+          try {
+            const errData = JSON.parse(xhr.responseText);
+            errorMsg.textContent = errData.error || 'Something went wrong.';
+          } catch(e) {
+            errorMsg.textContent = 'Something went wrong. Status: ' + xhr.status;
+          }
           errorMsg.classList.add('visible');
         }
         renderBtn.disabled = false;
