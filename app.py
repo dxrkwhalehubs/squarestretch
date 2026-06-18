@@ -82,8 +82,11 @@ def process_video():
 
     cmd = [
         'ffmpeg', '-y',
+        '-noautorotate',
         '-i', input_path,
         '-vf', vf,
+        '-map_metadata', '-1',
+        '-metadata:s:v:0', 'rotate=0',
         '-c:v', 'libx264',
         '-crf', str(quality),
         '-preset', 'ultrafast',
